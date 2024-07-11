@@ -130,6 +130,15 @@ ______________________________________________________________________________
 
 """
 
+def timer(func):
+    def wrapper(*args,**kwargs):
+        start = pns()
+        func(*args,**kwargs)
+        time_diff = pns()-start
+        print(f'{(time_diff*1e-6):.2f}ms')
+        return
+    return wrapper
+
 def make_up_arrays(size:int=260):
     """
     Just making up some arrays for testing
@@ -359,15 +368,15 @@ def min_simulation_box(atoms:pl.DataFrame, extra_margin=1)->str:
 
     maxs = atoms.select(['x-coor','y-coor','z-coor']).max().to_numpy().flatten()+extra_margin
     mins = atoms.select(['x-coor','y-coor','z-coor']).min().to_numpy().flatten()-extra_margin
-    xhi,yhi,zhi = maxs
-    xlo,ylo,zlo = mins
+    xhi,yhi,zhi = np.ceil(maxs)
+    xlo,ylo,zlo = np.floor(mins)
     
     return simulation_box(xhi=xhi,yhi=yhi,zhi=zhi,mirror=False,xlo=xlo,ylo=ylo,zlo=zlo)
 
 
-class Datafile:
+class DataFile:
     def __init__(self,
-                 atoms:np.ndarray,
+                 atoms:pl.DataFrame,
                  bonds:np.ndarray|None,
                  angles:np.ndarray|None,
                  dihedrals:np.ndarray|None,
@@ -380,12 +389,12 @@ class Datafile:
                  mirror_box:bool=True
                  ) -> None:
         #numpy array forms
-        self.atoms = atoms
+        self.atoms = atoms.to_numpy()
         self.bonds = bonds
         self.angles = angles
         self.dihedrals = dihedrals
         #string forms
-        self.atoms_str = arr2str(atoms,'Atoms',style=atoms_style) #cannot be None
+        self.atoms_str = arr2str(atoms.to_numpy(),'Atoms',style=atoms_style) #cannot be None
         self.bonds_str = arr2str(bonds,'Bonds')  if bonds is not None else ""
         self.angles_str = arr2str(angles,'Angles') if angles is not None else ""
         self.dihedrals_str= arr2str(dihedrals,'Dihedrals') if dihedrals is not None else ""
@@ -400,7 +409,7 @@ class Datafile:
         if not min_boundaries:
             self.simulation_box = simulation_box(xhi,yhi,zhi,mirror=mirror_box)
         elif min_boundaries:
-            self.simulation_box = simulation_box(xhi,yhi,zhi,mirror=mirror_box)
+            self.simulation_box = min_simulation_box(atoms)
 
     def __str__(self)->str:
         """        
@@ -433,34 +442,28 @@ class Datafile:
         
         return full_str
     
-    def to_file(self,fname:str):
-            with open(fname,'w') as f:
-                f.write(self.__str__())
-
-def timer(func):
-    def wrapper(*args,**kwargs):
-        start = pns()
-        func(*args,**kwargs)
-        time_diff = pns()-start
-        print(f'{(time_diff*1e-6):.2f}ms')
+    def to_file(self,fname:str)->None:
+        with open(fname,'w') as f:
+            f.write(self.__str__())
         return
-    return wrapper
+                
+
 
 @timer
 def main():
     atoms,bonds,angles,dihedrals = make_up_arrays(size=20000)
-    datafile = Datafile(atoms.to_numpy(),
-                        bonds,angles,
-                        None,
+    datafile = DataFile(atoms,
+                        bonds,
+                        angles,
+                        dihedrals,
                         atoms_style='angle',
                         min_boundaries=True,)
-    datafile.to_file('love.txt')
+    datafile.to_file('example.data')
+
+    return
         
 if __name__ ==  '__main__':
     main()
-
-
-
 
 
     """
