@@ -76,20 +76,7 @@ e.g.,
 -60.123 60.123 zlo zhi
 ----------------------
 _____________________________________________________________________________
-function 'unite_strings' unites the strings to form a complete string to be
-written to a file.
 
-Note that the order here is important and should be in the following order.
--------------------------------------------------------------
-whole_str = unite_strings(description, #from 'describe'
-                         box_str,      #from 'simulation_box'
-                         atoms_str,    #from 'arr2str'
-                         bonds_str,    #from 'arr2str'
-                         angles_str,   #from 'arr2str'
-                         .
-                         .
-                         .
-                         )
 -------------------------------------------------------------
 _____________________________________________________________________________
 
@@ -99,37 +86,31 @@ Sample use of the complete code is as follows.
 if __name__ ==  '__main__':
     
     #some arrays 
-    atoms,bonds,angles = make_up_arrays(size=20000)
+    atoms,bonds,angles,dihedrals = make_up_arrays(size=20000)
     
-    #initial text describing component
-    description = describe((atoms,'atoms'),
-                           (bonds,'bonds'),
-                           (angles,'angles'))
+    #create DataFile object
+    datafile = DataFile(atoms,
+                        bonds,
+                        angles,
+                        dihedrals,
+                        atoms_style='angle',
+                        min_boundaries=True,)
+
+    #write to file
+    #this will write the data file in the LAMMPS compatible format
+    datafile.to_file('example.data')
+
+
+    #print the object	
+    print(datafile)
     
-    #simulation box boundaries
-    box_str = simulation_box(60.123,60.123,60.123,mirror=1,
-                             xlo=55,ylo=31,zlo=15)
-    
-    #strings of arrays
-    atoms_str = arr2str(arr=atoms,name='Atoms',style='angle')
-    bonds_str = arr2str(arr=bonds,name='Bonds')
-    angles_str = arr2str(arr=angles,name='Angles')
-    
-    #arrays united --note that order is important
-    whole_str = unite_strings(description,
-                             box_str,
-                             atoms_str,
-                             bonds_str,
-                             angles_str)
-    
-    with open('deneme.data','w') as f:
-        f.write(whole_str)
 
 ----------------------------------------------------------------
 ______________________________________________________________________________
 
 """
 
+# additional functions for utilities
 def timer(func):
     def wrapper(*args,**kwargs):
         start = pns()
@@ -140,9 +121,11 @@ def timer(func):
     return wrapper
 
 def blue(text:str)->str:
+    '''Converts the text to blue color in the terminal.'''
     return f'\033[94m{text}\033[0m'
 
 def red(text:str)->str:
+    '''Converts the text to red color in the terminal.'''
     return f'\033[91m{text}\033[0m'
 
 def make_up_arrays(size:int=260):
@@ -156,7 +139,7 @@ def make_up_arrays(size:int=260):
 
     Returns
     -------
-    atoms : np.ndarray
+    atoms : pl.DataFrame
         2D atoms Array.
     bonds : np.ndarray
         2D bonds Array.
@@ -401,9 +384,9 @@ class DataFile:
         self.dihedrals = dihedrals
         #string forms
         self.atoms_str = arr2str(atoms.to_numpy(),'Atoms',style=atoms_style) #cannot be None
-        self.bonds_str = arr2str(bonds,'Bonds')  if bonds is not None else ""
-        self.angles_str = arr2str(angles,'Angles') if angles is not None else ""
-        self.dihedrals_str= arr2str(dihedrals,'Dihedrals') if dihedrals is not None else ""
+        self.bonds_str = arr2str(bonds,'Bonds') # if bonds is not None else ""
+        self.angles_str = arr2str(angles,'Angles') # if angles is not None else ""
+        self.dihedrals_str= arr2str(dihedrals,'Dihedrals') # if dihedrals is not None else ""
         #description
         self.description = describe(
             (atoms,'atoms'),
@@ -419,16 +402,19 @@ class DataFile:
 
     def __repr__(self)->str:
         """        
+        Merges the strings to create the full data file text.
+        Such as description, simulation box, atoms_str, bonds_str, angles_str, dihedrals_str.
 
         Parameters
         ----------
-        *strings : str
-            String parts.
+        None
 
         Returns
         -------
         str
-            United string.
+            Merged string 
+            OR
+            The full data file text.
 
         """
 
@@ -447,12 +433,18 @@ class DataFile:
         
         return full_str
     
+    def __len__(self)->int:
+        '''Number of lines in the data file.'''
+        return self.__repr__().count('\n')+1
+    
     def __str__(self)->str:
+        '''String representation of the object. Will be used for print() function.'''
         class_name = self.__class__.__name__
         description = self.description # removing the last two newlines
         return f'{red(class_name)} Object\n{blue(description+self.simulation_box)}'
     
     def to_file(self,fname:str)->None:
+        '''Write the datafile to a file with given name (fname).'''
         with open(fname,'w') as f:
             f.write(self.__repr__())
         return
@@ -465,7 +457,7 @@ def main():
     atoms,bonds,angles,dihedrals = make_up_arrays(size=20000)
     datafile = DataFile(atoms,
                         bonds,
-                        angles,
+                        None,
                         dihedrals,
                         atoms_style='angle',
                         min_boundaries=True,)
